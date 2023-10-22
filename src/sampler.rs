@@ -25,35 +25,6 @@ pub fn resample<'a>(py: Python<'a>, data: &'a [u8]) -> PyResult<()> {
         .unwrap();
     let codec = stream.codec_parameters();
     let codec = codec.as_audio_codec_parameters().unwrap();
-    /*
-    let mut frame = AudioFrameMut::silence(
-        codec.channel_layout(),
-        codec.sample_format(),
-        codec.sample_rate(),
-        1024,
-    );
-    let size = codec.channel_layout();
-    let mut planes = frame.planes_mut();
-    let plane_data = planes[0].data_mut();
-    let mut target = &mut plane_data[0..4096];
-    target.copy_from_slice(&data.get_ref());
-    let frame = frame.freeze();
-    */
-    let mut decoder = AudioDecoder::from_stream(stream).unwrap().build().unwrap();
-    while let Ok(Some(packet)) = demuxer.take() {
-        println!("packet: {:?}", packet.stream_index());
-        if packet.stream_index() != index {
-            continue;
-        }
-        decoder.push(packet).unwrap();
-
-        /*
-        while let Some(frame) = decoder.take().unwrap() {
-            println!("frame: {:?}", frame.pts().as_f32().unwrap_or(0f32));
-        }
-        */
-    }
-    // decoder.push(demuxer.take().unwrap().unwrap()).unwrap();
     let mut resampler = AudioResampler::builder()
         .source_channel_layout(codec.channel_layout().to_owned())
         .source_sample_format(codec.sample_format())
@@ -63,17 +34,16 @@ pub fn resample<'a>(py: Python<'a>, data: &'a [u8]) -> PyResult<()> {
         .target_sample_rate(36000)
         .build()
         .unwrap();
-    while let Some(frame) = decoder.take().unwrap() {
-        println!("oh");
-        resampler.push(frame).unwrap();
+    let mut decoder = AudioDecoder::from_stream(stream).unwrap().build().unwrap();
+    while let Ok(Some(packet)) = demuxer.take() {
+        println!("packet: {:?}", packet.stream_index());
+        if packet.stream_index() != index {
+            continue;
+        }
+        decoder.push(packet).unwrap();
+        while let Some(frame) = decoder.take().unwrap() {
+            println!("frame: {:?}", frame.pts().as_f32().unwrap_or(0f32));
+        }
     }
-    /*
-    let mut result = Vec::new();
-    while let Ok(Some(frame)) = resampler.take() {
-        // Add data to the buffer
-        result.push(frame.clone().planes()[0].data());
-    }
-    // convert Vec<u8> to &[u8]
-    */
     Ok(())
 }
