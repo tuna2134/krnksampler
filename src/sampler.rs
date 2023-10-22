@@ -43,6 +43,13 @@ pub fn resample<'a>(py: Python<'a>, data: &'a [u8]) -> PyResult<()> {
         decoder.push(packet).unwrap();
         while let Some(frame) = decoder.take().unwrap() {
             println!("frame: {:?}", frame.pts().as_f32().unwrap_or(0f32));
+            resampler.push(frame).unwrap();
+        }
+    }
+    let mut result = Vec::new();
+    while let Some(frame) = resampler.take().unwrap() {
+        for plane in frame.planes().iter() {
+            result.push(plane.data().clone());
         }
     }
     Ok(())
